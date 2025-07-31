@@ -21,7 +21,7 @@ function ProtectedRoute({ children }: { children: ReactNode }) {
   const { user } = useAuth();
   return user ? children : <Navigate to="/" />;
 }
-const PROFESSIONAL_UID = "GYfLiHKiZDgJBmeLvGwxzM6k2j12";
+const PROFESSIONAL_UID = "XrNrVJJrZaSBYJF8WnNj2a3p0iW2";
 
 const router = createBrowserRouter([
    {

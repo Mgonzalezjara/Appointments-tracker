@@ -12,7 +12,7 @@ interface Service {
   duration: number;
 }
 
-const PROFESSIONAL_UID = "GYfLiHKiZDgJBmeLvGwxzM6k2j12"; // 👈 Reemplaza con tu UID
+const PROFESSIONAL_UID = "XrNrVJJrZaSBYJF8WnNj2a3p0iW2"; // 👈 Reemplaza con tu UID
 
 export default function LandingHome() {
   const navigate = useNavigate();
