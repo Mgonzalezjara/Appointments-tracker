@@ -10,8 +10,6 @@ import {
   updateDoc,
   deleteDoc,
   getDocs,
-  query,
-  where,
 } from "firebase/firestore";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
@@ -130,18 +128,15 @@ export default function CalendarPage() {
     const end = new Date(`${formData.date}T${formData.endHour}`);
     const duration = durationPreview || 0;
 
-    const q = query(
-      collection(db, "professionals", user.uid, "appointments"),
-      where("startTime", "<", end.toISOString()),
-      where("endTime", ">", start.toISOString())
+    const overlapping = appointments.filter(
+      (appt) =>
+        new Date(appt.startTime) < end &&
+        new Date(appt.endTime) > start
     );
 
-    const snapshot = await getDocs(q);
-
-    for (const docSnap of snapshot.docs) {
-      const appt = docSnap.data();
+    for (const appt of overlapping) {
       if (appt.status === "available") {
-        await deleteDoc(doc(db, "professionals", user.uid, "appointments", docSnap.id));
+        await deleteDoc(doc(db, "professionals", user.uid, "appointments", appt.id));
       }
     }
 

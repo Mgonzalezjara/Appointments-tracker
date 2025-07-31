@@ -6,9 +6,8 @@ import {
   collection,
   addDoc,
   getDocs,
-  query,
-  where,
   deleteDoc,
+  doc,
   Timestamp,
 } from "firebase/firestore";
 
@@ -19,8 +18,18 @@ export default function ScheduleConfig() {
   const [days, setDays] = useState<string[]>([]);
   const [startHour, setStartHour] = useState("");
   const [endHour, setEndHour] = useState("");
-  const [duration, setDuration] = useState(30); // minutos
+  const [duration, setDuration] = useState(30);
   const [loading, setLoading] = useState(false);
+  const [appointments, setAppointments] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    const fetchAppointments = async () => {
+      const snapshot = await getDocs(collection(db, "professionals", user.uid, "appointments"));
+      setAppointments(snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+    };
+    fetchAppointments();
+  }, [user]);
 
   const toggleDay = (day: string) => {
     setDays((prev) =>
@@ -60,7 +69,6 @@ export default function ScheduleConfig() {
       Domingo: 0,
     };
 
-    // Generar todas las fechas en el rango que coincidan con los días seleccionados
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       if (days.includes(Object.keys(dayMap).find((key) => dayMap[key] === d.getDay())!)) {
         allDays.push(new Date(d));
@@ -73,23 +81,20 @@ export default function ScheduleConfig() {
       const slots = generateTimeSlots(dayStart, dayEnd, duration);
 
       for (const slot of slots) {
-        // Buscar citas en el mismo horario
-        const q = query(
-          collection(db, "professionals", user.uid, "appointments"),
-          where("startTime", "<", slot.end.toISOString()),
-          where("endTime", ">", slot.start.toISOString())
+        const overlapping = appointments.filter(
+          (appt) =>
+            new Date(appt.startTime) < slot.end &&
+            new Date(appt.endTime) > slot.start
         );
 
-        const snapshot = await getDocs(q);
         let hasBooked = false;
 
-        for (const docSnap of snapshot.docs) {
-          const appt = docSnap.data();
+        for (const appt of overlapping) {
           if (appt.status === "booked") {
             hasBooked = true;
-            break; // no crear esta cita
+            break;
           } else if (appt.status === "available") {
-            await deleteDoc(docSnap.ref); // eliminar citas disponibles que se superponen
+            await deleteDoc(doc(db, "professionals", user.uid, "appointments", appt.id));
           }
         }
 
