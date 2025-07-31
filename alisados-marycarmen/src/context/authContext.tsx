@@ -2,8 +2,7 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { auth, db } from "../firebaseConfig";
 import { 
   onAuthStateChanged, 
-  signInWithPopup, 
-  GoogleAuthProvider, 
+  signInWithEmailAndPassword, 
   signOut, 
   type User 
 } from "firebase/auth";
@@ -12,11 +11,12 @@ import { doc, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 // Definimos el tipo del contexto
 interface AuthContextType {
   user: User | null;
-  loginWithGoogle: () => Promise<void>;
+  loginWithEmail: (email: string, password: string) => Promise<void>;
   logout: () => Promise<void>;
   loading: boolean;
-  professionalProfile: any | null; // Perfil del profesional en Firestore
+  professionalProfile: any | null;
 }
+
 
 // Creamos el contexto
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -75,15 +75,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   };
 
-  // Login con Google
-  const loginWithGoogle = async () => {
-    const provider = new GoogleAuthProvider();
-    provider.setCustomParameters({
-    prompt: "select_account", // 🔥 Fuerza a mostrar el selector de cuentas siempre
-    });
-await signInWithPopup(auth, provider);
+  // Login con Email
+const loginWithEmail = async (email: string, password: string) => {
+  await signInWithEmailAndPassword(auth, email, password);
+};
 
-  };
 
   // Logout
  // authContext.tsx
@@ -95,7 +91,7 @@ const logout = async () => {
 
 
   return (
-    <AuthContext.Provider value={{ user, loginWithGoogle, logout, loading, professionalProfile }}>
+<AuthContext.Provider value={{ user, loginWithEmail, logout, loading, professionalProfile }}>
       {children}
     </AuthContext.Provider>
   );
