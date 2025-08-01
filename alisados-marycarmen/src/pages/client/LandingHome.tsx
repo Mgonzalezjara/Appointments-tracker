@@ -1,6 +1,6 @@
 // src/pages/LandingHome.tsx
 import  { useEffect, useState } from "react";
-import { db } from "../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 

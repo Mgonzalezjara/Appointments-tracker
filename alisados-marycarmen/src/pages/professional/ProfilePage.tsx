@@ -1,7 +1,7 @@
 // src/pages/ProfilePage.tsx
 import { useEffect, useState } from "react";
-import { useAuth } from "../context/authContext";
-import { db } from "../firebaseConfig";
+import { useAuth } from "../../context/authContext";
+import { db } from "../../firebaseConfig";
 import { doc, updateDoc } from "firebase/firestore";
 
 export default function ProfilePage() {

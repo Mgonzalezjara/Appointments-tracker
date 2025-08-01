@@ -1,7 +1,7 @@
 // src/pages/CalendarPage.tsx
 import { useEffect, useState } from "react";
-import { db } from "../firebaseConfig";
-import { useAuth } from "../context/authContext";
+import { db } from "../../firebaseConfig";
+import { useAuth } from "../../context/authContext";
 import {
   collection,
   addDoc,

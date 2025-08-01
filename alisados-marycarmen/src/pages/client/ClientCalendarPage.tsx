@@ -1,6 +1,6 @@
 // src/pages/ClientCalendarPage.tsx
 import { useEffect, useState } from "react";
-import { db } from "../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import { collection, onSnapshot, doc, updateDoc, getDocs, query, where } from "firebase/firestore";
 import { Calendar, dateFnsLocalizer } from "react-big-calendar";
 import type { Event as RBCEvent } from "react-big-calendar";

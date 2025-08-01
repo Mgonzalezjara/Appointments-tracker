@@ -1,6 +1,6 @@
 // src/pages/ServicesPublicPage.tsx
 import { useEffect, useState } from "react";
-import { db } from "../firebaseConfig";
+import { db } from "../../firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
 
 interface Service {

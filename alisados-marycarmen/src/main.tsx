@@ -3,17 +3,17 @@ import type { ReactNode } from "react";
 import ReactDOM from "react-dom/client";
 import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/authContext.tsx";
-import LoginPage from "./pages/LoginPage";
-import DashboardLayout from "./pages/DashboardLayout";
-import ProfilePage from "./pages/ProfilePage";
-import ServicesPage from "./pages/ServicesPage";
-import CalendarPage from "./pages/CalendarPage";
-import AccountsPage from "./pages/AccountsPage.tsx";
-import ClientCalendarPage from "./pages/ClientCalendarPage.tsx";
-import LandingPage from "./pages/LandingPage";
-import ServicesPublicPage from "./pages/ServicesPublicPage";
-import LandingHome from "./pages/LandingHome";
-import ScheduleConfigPage from "./pages/ScheduleConfigPage.tsx";
+import LoginPage from "./pages/client/LoginPage";
+import DashboardLayout from "./pages/professional/DashboardLayout";
+import ProfilePage from "./pages/professional/ProfilePage";
+import ServicesPage from "./pages/professional/ServicesPage";
+import CalendarPage from "./pages/professional/CalendarPage";
+import AccountsPage from "./pages/professional/AccountsPage.tsx";
+import ClientCalendarPage from "./pages/client/ClientCalendarPage.tsx";
+import LandingPage from "./pages/client/LandingPage";
+import ServicesPublicPage from "./pages/client/ServicesPublicPage";
+import LandingHome from "./pages/client/LandingHome";
+import ScheduleConfigPage from "./pages/professional/ScheduleConfigPage.tsx";
 
 import "./styles/App.css";
 

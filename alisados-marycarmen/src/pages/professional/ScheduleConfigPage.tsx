@@ -1,7 +1,7 @@
 // src/pages/ScheduleConfig.tsx
 import { useState, useEffect } from "react";
-import { db } from "../firebaseConfig";
-import { useAuth } from "../context/authContext";
+import { db } from "../../firebaseConfig";
+import { useAuth } from "../../context/authContext";
 import {
   collection,
   addDoc,
