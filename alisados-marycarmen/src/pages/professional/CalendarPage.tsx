@@ -290,19 +290,30 @@ export default function CalendarPage() {
       />
 
       <AppointmentModal
-        isOpen={isModalOpen}
-        onClose={() => setIsModalOpen(false)}
-        onSubmit={handleCreateOrUpdate}
-        formData={formData}
-        setFormData={setFormData}
-        services={services}
-        isEditing={!!editingId}
-        durationPreview={durationPreview}
-        isFormValid={isFormValid}
-        statusAction={statusAction}
-        setStatusAction={setStatusAction}
-        isPastOrToday={isPastOrToday}
-      />
+  isOpen={isModalOpen}
+  onClose={() => setIsModalOpen(false)}
+  onSubmit={handleCreateOrUpdate}
+  onDelete={async () => {
+    if (!user || !editingId) return;
+    if (window.confirm("¿Estás seguro de que deseas eliminar esta cita?")) {
+      await deleteAppointment(user.uid, editingId);
+      alert("La cita fue eliminada exitosamente");
+      setIsModalOpen(false);
+    }
+  }}
+  formData={formData}
+  setFormData={setFormData}
+  services={services}
+  isEditing={!!editingId}
+  durationPreview={durationPreview}
+  isFormValid={isFormValid}
+  statusAction={statusAction}
+  setStatusAction={setStatusAction}
+  isPastOrToday={isPastOrToday}
+/>
+
+
+
     </div>
   );
 }

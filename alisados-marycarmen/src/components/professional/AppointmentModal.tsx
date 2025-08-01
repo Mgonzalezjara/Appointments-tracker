@@ -1,5 +1,4 @@
 import { Dialog } from "@headlessui/react";
-import { useEffect } from "react";
 
 interface Service {
   id: string;
@@ -23,6 +22,7 @@ interface AppointmentModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSubmit: () => void;
+  onDelete?: () => void;
   formData: FormData;
   setFormData: React.Dispatch<React.SetStateAction<FormData>>;
   services: Service[];
@@ -38,6 +38,7 @@ export default function AppointmentModal({
   isOpen,
   onClose,
   onSubmit,
+  onDelete,
   formData,
   setFormData,
   services,
@@ -48,22 +49,6 @@ export default function AppointmentModal({
   setStatusAction,
   isPastOrToday,
 }: AppointmentModalProps) {
-
-  // ✅ Ajustar automáticamente la hora de fin según la duración del servicio seleccionado
-  useEffect(() => {
-    if (formData.serviceId && formData.date && formData.startHour) {
-      const selectedService = services.find((s) => s.id === formData.serviceId);
-      if (selectedService) {
-        const start = new Date(`${formData.date}T${formData.startHour}`);
-        const adjustedEnd = new Date(start.getTime() + selectedService.duration * 60000);
-        const newEndHour = adjustedEnd.toTimeString().slice(0, 5);
-        if (formData.endHour !== newEndHour) {
-          setFormData((prev) => ({ ...prev, endHour: newEndHour }));
-        }
-      }
-    }
-  }, [formData.serviceId, formData.startHour, formData.date, services, setFormData]);
-
   return (
     <Dialog open={isOpen} onClose={onClose} className="fixed inset-0 z-50">
       <div className="flex items-center justify-center min-h-screen bg-black bg-opacity-40">
@@ -119,9 +104,6 @@ export default function AppointmentModal({
               </option>
             ))}
           </select>
-
-          {/* ... resto del modal sin cambios ... */}
-
 
           <label className="block mb-1">Pago recibido</label>
           <input
@@ -216,6 +198,15 @@ export default function AppointmentModal({
               Cancelar
             </button>
           </div>
+
+          {isEditing && onDelete && (
+            <button
+              onClick={onDelete}
+              className="mt-4 w-full bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded"
+            >
+              🗑 Eliminar cita
+            </button>
+          )}
         </Dialog.Panel>
       </div>
     </Dialog>
