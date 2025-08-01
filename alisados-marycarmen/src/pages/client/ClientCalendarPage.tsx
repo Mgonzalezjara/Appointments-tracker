@@ -1,8 +1,7 @@
-// src/pages/ClientCalendarPage.tsx
 import { useEffect, useState } from "react";
 import { db } from "../../firebaseConfig";
 import { collection, onSnapshot, doc, updateDoc, getDocs, query, where } from "firebase/firestore";
-import { Calendar, dateFnsLocalizer } from "react-big-calendar";
+import { Calendar, dateFnsLocalizer, Views } from "react-big-calendar";
 import type { Event as RBCEvent } from "react-big-calendar";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 import { format, parse, startOfWeek, getDay } from "date-fns";
@@ -18,6 +17,14 @@ const localizer = dateFnsLocalizer({
   locales,
 });
 
+interface Service {
+  id: string;
+  name: string;
+  price: number;
+  duration: number;
+  available: boolean;
+}
+
 interface Appointment {
   id: string;
   startTime: string;
@@ -25,187 +32,171 @@ interface Appointment {
   duration: number;
   status: "available" | "booked" | "attended" | "no-show";
   serviceId?: string;
-  payment?: number;
-  clientInfo?: {
-    name: string;
-    email: string;
-    phone: string;
-  };
+  clientInfo?: { name: string; email: string; phone: string };
 }
 
 interface CalendarEvent extends RBCEvent {
   id: string;
-  status: "available" | "booked" | "attended" | "no-show";
+  status: "available";
 }
 
-interface ClientForm {
-  name: string;
-  email: string;
-  phone: string;
-  serviceId: string;
+// ✅ Toolbar personalizado en español
+function CustomToolbar({ label, onNavigate, onView }: any) {
+  return (
+    <div className=" flex justify-evenly items-center mb-4">
+      <div>
+        <button onClick={() => onNavigate("TODAY")} className="bg-blue-500 text-white px-2 py-1 rounded mr-2">
+          Hoy
+        </button>
+        <button onClick={() => onNavigate("PREV")} className="bg-gray-300 px-2 py-1 rounded mr-2">
+          ←
+        </button>
+        <button onClick={() => onNavigate("NEXT")} className="bg-gray-300 px-2 py-1 rounded">
+          →
+        </button>
+      </div>
+      <span className="font-semibold">{label}</span>
+      <div>
+        <button onClick={() => onView(Views.DAY)} className="bg-gray-200 px-2 py-1 rounded mr-2">
+          Día
+        </button>
+        <button onClick={() => onView(Views.WEEK)} className="bg-gray-200 px-2 py-1 rounded mr-2">
+          Semana
+        </button>
+        <button onClick={() => onView(Views.MONTH)} className="bg-gray-200 px-2 py-1 rounded">
+          Mes
+        </button>
+      </div>
+    </div>
+  );
 }
+
 
 export default function ClientCalendarPage({ professionalId }: { professionalId: string }) {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [services, setServices] = useState<any[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [selectedAppt, setSelectedAppt] = useState<Appointment | null>(null);
+  const [formData, setFormData] = useState({ name: "", email: "", phone: "", serviceId: "" });
   const [isModalOpen, setIsModalOpen] = useState(false);
-
-  const [formData, setFormData] = useState<ClientForm>({
-    name: "",
-    email: "",
-    phone: "",
-    serviceId: "",
-  });
-
   const [isFormValid, setIsFormValid] = useState(false);
   const [myAppointments, setMyAppointments] = useState<Appointment[]>([]);
   const [emailFilter, setEmailFilter] = useState("");
-
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [currentView, setCurrentView] = useState<"day" | "week" | "month">("week");
+const [currentView, setCurrentView] = useState<"day" | "week" | "month">("month");
 
+  /** 🔥 Cargar citas disponibles en tiempo real */
   useEffect(() => {
-    if (!professionalId) return;
-    const unsub = onSnapshot(
-      collection(db, "professionals", professionalId, "appointments"),
-      (snapshot) => {
-        const data: Appointment[] = snapshot.docs.map((doc) => ({
-          ...(doc.data() as Appointment),
-          id: doc.id,
-        }));
-        setAppointments(data.filter((appt) => appt.status === "available"));
-      }
-    );
+    const unsub = onSnapshot(collection(db, "professionals", professionalId, "appointments"), (snapshot) => {
+      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Omit<Appointment, "id">) }));
+      setAppointments(data.filter((appt) => appt.status === "available"));
+    });
     return () => unsub();
   }, [professionalId]);
 
+  /** 🔥 Cargar servicios solo disponibles */
   useEffect(() => {
-    if (!professionalId) return;
     const fetchServices = async () => {
-      const querySnapshot = await getDocs(collection(db, "professionals", professionalId, "services"));
-      setServices(querySnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      const snapshot = await getDocs(collection(db, "professionals", professionalId, "services"));
+      const data = snapshot.docs.map((doc) => ({ id: doc.id, ...(doc.data() as Omit<Service, "id">) }));
+      setServices(data.filter((s) => s.available));
     };
     fetchServices();
   }, [professionalId]);
 
+  /** 🔥 Validar formulario */
   useEffect(() => {
     setIsFormValid(
-      formData.name.trim() !== "" &&
-        formData.email.trim() !== "" &&
-        formData.phone.trim() !== "" &&
-        formData.serviceId.trim() !== ""
+      formData.name.trim() && formData.email.trim() && formData.phone.trim() && formData.serviceId.trim() ? true : false
     );
   }, [formData]);
 
-  const handleSelectAppt = (appt: Appointment) => {
-    setSelectedAppt(appt);
-    setIsModalOpen(true);
-  };
-
+  /** 🔥 Reservar cita */
   const handleBookAppointment = async () => {
     if (!selectedAppt) return;
-    const docRef = doc(db, "professionals", professionalId, "appointments", selectedAppt.id);
-    await updateDoc(docRef, {
+    await updateDoc(doc(db, "professionals", professionalId, "appointments", selectedAppt.id), {
       status: "booked",
       serviceId: formData.serviceId,
-      clientInfo: {
-        name: formData.name,
-        email: formData.email,
-        phone: formData.phone,
-      },
+      clientInfo: { name: formData.name, email: formData.email, phone: formData.phone },
     });
     setIsModalOpen(false);
     setFormData({ name: "", email: "", phone: "", serviceId: "" });
-    setSelectedAppt(null);
   };
 
+  /** 🔥 Buscar mis citas por correo */
   const handleSearchMyAppointments = async () => {
     if (!emailFilter.trim()) return;
+
     const q = query(
       collection(db, "professionals", professionalId, "appointments"),
       where("clientInfo.email", "==", emailFilter)
     );
+
     const snapshot = await getDocs(q);
-    const data: Appointment[] = snapshot.docs.map((doc) => ({
-      ...(doc.data() as Appointment),
-      id: doc.id,
-    }));
-    setMyAppointments(data);
+
+    setMyAppointments(
+      snapshot.docs.map((doc) => ({
+        ...(doc.data() as Omit<Appointment, "id">), // primero todos los datos
+        id: doc.id, // luego aseguramos que el ID correcto sea el del documento
+      }))
+    );
   };
 
+
+  /** 📅 Eventos para el calendario */
   const events: CalendarEvent[] = appointments.map((appt) => ({
     id: appt.id,
     title: `Disponible (${new Date(appt.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })})`,
     start: new Date(appt.startTime),
     end: new Date(appt.endTime),
-    status: appt.status,
+    status: "available",
   }));
 
   return (
-    <div>
+    <div className="p-2">
       <h2 className="text-2xl font-bold mb-4">Calendario de Citas Disponibles</h2>
-      <div className="bg-white p-4 rounded shadow mb-6">
-        <Calendar<CalendarEvent>
-          localizer={localizer}
-          events={events}
-          startAccessor="start"
-          endAccessor="end"
-          date={currentDate}
-          view={currentView}
-          onNavigate={(date) => setCurrentDate(date)}
-          onView={(view) => setCurrentView(view as any)}
-          style={{ height: 500 }}
-          views={["day", "week", "month"]}
-          eventPropGetter={() => ({
-            style: {
-              backgroundColor: "#10b981",
-              color: "white",
-              borderRadius: "6px",
-            },
-          })}
-          onSelectEvent={(event) => handleSelectAppt(appointments.find((appt) => appt.id === event.id)!)}
-        />
-      </div>
+      <Calendar
+        localizer={localizer}
+        culture="es"
+        events={events}
+        startAccessor="start"
+        endAccessor="end"
+        date={currentDate}
+        view={currentView}
+        onNavigate={setCurrentDate}
+        defaultView="month"
+        components={{ toolbar: CustomToolbar }} // ✅ Toolbar traducido
+        onView={(view) => setCurrentView(view as any)}
+        style={{ height: 500 }}
+        eventPropGetter={() => ({ style: { backgroundColor: "#10b981", color: "white", borderRadius: "6px" } })}
+        onSelectEvent={(event) => {
+          const appt = appointments.find((a) => a.id === event.id)!;
+          setSelectedAppt(appt);
+          setIsModalOpen(true);
+        }}
+      />
 
+      {/* MODAL */}
       <Dialog open={isModalOpen} onClose={() => setIsModalOpen(false)} className="fixed inset-0 z-50">
         <div className="flex items-center justify-center min-h-screen bg-black bg-opacity-40">
           <Dialog.Panel className="bg-white rounded-lg p-6 shadow-xl w-full max-w-lg">
             <Dialog.Title className="text-xl font-semibold mb-4">Reservar Cita</Dialog.Title>
             {selectedAppt && (
               <>
-                <p className="mb-2 text-sm text-gray-700">
-                  <strong>Fecha:</strong> {new Date(selectedAppt.startTime).toLocaleDateString()}
-                </p>
-                <p className="mb-4 text-sm text-gray-700">
-                  <strong>Hora:</strong>{" "}
-                  {new Date(selectedAppt.startTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })} -{" "}
-                  {new Date(selectedAppt.endTime).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-                </p>
+                <p><strong>Fecha:</strong> {new Date(selectedAppt.startTime).toLocaleDateString()}</p>
+                <p className="mb-4"><strong>Hora:</strong> {new Date(selectedAppt.startTime).toLocaleTimeString()} - {new Date(selectedAppt.endTime).toLocaleTimeString()}</p>
               </>
             )}
-            <label className="block mb-1">Servicio</label>
-            <select
-              name="serviceId"
-              value={formData.serviceId}
-              onChange={(e) => setFormData({ ...formData, serviceId: e.target.value })}
-              className="border w-full p-2 mb-4"
-            >
+            <select value={formData.serviceId} onChange={(e) => setFormData({ ...formData, serviceId: e.target.value })} className="border w-full p-2 mb-4">
               <option value="">Seleccionar servicio</option>
               {services.map((service) => (
-                <option key={service.id} value={service.id}>
-                  {service.name} (${service.price})
-                </option>
+                <option key={service.id} value={service.id}>{service.name} (${service.price})</option>
               ))}
             </select>
-            <label className="block mb-1">Nombre</label>
-            <input type="text" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} className="border w-full p-2 mb-2" />
-            <label className="block mb-1">Correo</label>
-            <input type="email" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} className="border w-full p-2 mb-2" />
-            <label className="block mb-1">Teléfono</label>
-            <input type="tel" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} className="border w-full p-2 mb-4" />
+            <input type="text" placeholder="Nombre" className="border w-full p-2 mb-2" value={formData.name} onChange={(e) => setFormData({ ...formData, name: e.target.value })} />
+            <input type="email" placeholder="Correo" className="border w-full p-2 mb-2" value={formData.email} onChange={(e) => setFormData({ ...formData, email: e.target.value })} />
+            <input type="tel" placeholder="Teléfono" className="border w-full p-2 mb-4" value={formData.phone} onChange={(e) => setFormData({ ...formData, phone: e.target.value })} />
             <div className="flex gap-2">
-              <button onClick={handleBookAppointment} disabled={!isFormValid} className={`w-full px-4 py-2 rounded text-white ${isFormValid ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-400 cursor-not-allowed"}`}>
+              <button onClick={handleBookAppointment} disabled={!isFormValid} className={`w-full px-4 py-2 rounded text-white ${isFormValid ? "bg-blue-500 hover:bg-blue-600" : "bg-gray-400"}`}>
                 Confirmar Reserva
               </button>
               <button onClick={() => setIsModalOpen(false)} className="w-full px-4 py-2 rounded bg-gray-400 hover:bg-gray-500 text-white">
@@ -216,7 +207,8 @@ export default function ClientCalendarPage({ professionalId }: { professionalId:
         </div>
       </Dialog>
 
-      <div className="mt-10">
+      {/* 🔍 Buscar mis citas */}
+      <div className="mt-10 p-5">
         <h3 className="text-xl font-semibold mb-2">Buscar mis citas</h3>
         <div className="flex gap-2 mb-4">
           <input type="email" placeholder="Ingresa tu correo" value={emailFilter} onChange={(e) => setEmailFilter(e.target.value)} className="border p-2 w-full" />

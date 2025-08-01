@@ -1,17 +1,37 @@
-// src/pages/AccountsPage.tsx
 import { useEffect, useState } from "react";
 import { db } from "../../firebaseConfig";
 import { useAuth } from "../../context/authContext";
 import { collection, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
+import AccountsTables from "../../components/professional/AccountsTables";
+import AccountsAttendedDetail from "../../components/professional/AccountsAttendedDetails";
+
+export interface Appointment {
+  id: string;
+  startTime: string;
+  endTime: string;
+  status: "available" | "booked" | "attended" | "no-show";
+  serviceId?: string;
+  payment: number;
+  clientInfo?: { name?: string; email?: string; phone?: string };
+}
+
+export interface Service {
+  id: string;
+  name: string;
+  description?: string;
+  price: number;
+  duration: number;
+}
 
 export default function AccountsPage() {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const [appointments, setAppointments] = useState<any[]>([]);
-  const [services, setServices] = useState<any[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
   const [daysFilter, setDaysFilter] = useState<7 | 15 | 30 | 90 | "all">(7);
 
+  // 🔹 Cargar citas y servicios desde Firestore
   useEffect(() => {
     if (!user) return;
 
@@ -19,17 +39,17 @@ export default function AccountsPage() {
       const apptSnap = await getDocs(collection(db, "professionals", user.uid, "appointments"));
       const serviceSnap = await getDocs(collection(db, "professionals", user.uid, "services"));
 
-      setAppointments(apptSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
-      setServices(serviceSnap.docs.map((doc) => ({ id: doc.id, ...doc.data() })));
+      setAppointments(apptSnap.docs.map((doc) => ({ ...(doc.data() as Appointment), id: doc.id })));
+      setServices(serviceSnap.docs.map((doc) => ({ ...(doc.data() as Service), id: doc.id })));
     };
 
     fetchData();
   }, [user]);
 
+  // 🔹 Alertas
   const reviewPending = appointments.some(
     (appt) =>
-      ["available", "booked"].includes(appt.status) &&
-      new Date(appt.startTime) <= new Date()
+      ["available", "booked"].includes(appt.status) && new Date(appt.startTime) <= new Date()
   );
 
   const missingService = appointments.some(
@@ -44,6 +64,7 @@ export default function AccountsPage() {
     return false;
   });
 
+  // 🔹 Filtrar citas por rango de días
   const now = new Date();
   const filteredAppointments = appointments.filter((appt) => {
     if (!["attended", "no-show"].includes(appt.status)) return false;
@@ -53,41 +74,22 @@ export default function AccountsPage() {
     return diffDays <= daysFilter;
   });
 
+  // 🔹 Separar atendidas y no-show
   const attended = filteredAppointments.filter((a) => a.status === "attended" && a.serviceId);
   const noShow = filteredAppointments.filter((a) => a.status === "no-show" && a.serviceId);
 
-  // INGRESOS REALES (atendidos)
-  const attendedSum = attended.reduce((sum, appt) => {
-    return sum + (appt.payment || 0); // Usamos lo realmente pagado
-  }, 0);
-
-  // NO SHOW (perdido)
+  // 🔹 Cálculos generales
+  const attendedSum = attended.reduce((sum, appt) => sum + (appt.payment || 0), 0);
   const noShowSum = noShow.reduce((sum, appt) => {
     const service = services.find((s) => s.id === appt.serviceId);
     return sum + (service?.price || 0);
   }, 0);
 
-  const groupByService = (arr: any[]) => {
-    const grouped: Record<string, { count: number; total: number }> = {};
-    arr.forEach((appt) => {
-      const service = services.find((s) => s.id === appt.serviceId);
-      if (service) {
-        if (!grouped[service.name]) grouped[service.name] = { count: 0, total: 0 };
-        grouped[service.name].count++;
-        grouped[service.name].total += appt.payment || 0; // usamos lo pagado
-      }
-    });
-    return grouped;
-  };
-
-  const attendedByService = groupByService(attended);
-  const noShowByService = groupByService(noShow);
-
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">Cuentas</h2>
 
-      {/* ALERTAS */}
+      {/* 🔔 ALERTAS */}
       {reviewPending && (
         <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 p-4 rounded mb-4">
           Tienes citas pendientes de revisión.{" "}
@@ -113,7 +115,7 @@ export default function AccountsPage() {
         </div>
       )}
 
-      {/* FILTRO DE DÍAS */}
+      {/* 🔍 FILTRO DE DÍAS */}
       <div className="mb-4">
         <label className="mr-2 font-semibold">Filtrar por:</label>
         <select
@@ -129,155 +131,39 @@ export default function AccountsPage() {
         </select>
       </div>
 
-      {/* RESUMEN */}
+      {/* 📊 RESUMEN */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
         <div className="bg-green-100 p-4 rounded shadow">
-        <h3 className="font-bold text-lg">Atendidas</h3>
-        <p>Total citas: <strong>{attended.length}</strong></p>
-        <p>💰 Por ganar (precio total): <strong>${attended.reduce((sum, appt) => {
-            const service = services.find((s) => s.id === appt.serviceId);
-            return sum + (service?.price || 0);
-        }, 0)}</strong></p>
-        <p>✅ Ingresos ganados (pagado): <strong>${attended.reduce((sum, appt) => sum + (appt.payment || 0), 0)}</strong></p>
-        <p>⚠️ Adeudado: <strong>${attended.reduce((sum, appt) => {
-            const service = services.find((s) => s.id === appt.serviceId);
-            const price = service?.price || 0;
-            return sum + Math.max(price - (appt.payment || 0), 0);
-        }, 0)}</strong></p>
+          <h3 className="font-bold text-lg">Atendidas</h3>
+          <p>Total citas: <strong>{attended.length}</strong></p>
+          <p>💰 Por ganar: <strong>${attended.reduce((sum, appt) => {
+              const service = services.find((s) => s.id === appt.serviceId);
+              return sum + (service?.price || 0);
+          }, 0)}</strong></p>
+          <p>✅ Ingresos ganados: <strong>${attendedSum}</strong></p>
+          <p>⚠️ Adeudado: <strong>${attended.reduce((sum, appt) => {
+              const service = services.find((s) => s.id === appt.serviceId);
+              const price = service?.price || 0;
+              return sum + Math.max(price - (appt.payment || 0), 0);
+          }, 0)}</strong></p>
         </div>
 
         <div className="bg-red-100 p-4 rounded shadow">
           <h3 className="font-bold text-lg">No asistidas</h3>
           <p>Total citas: <strong>{noShow.length}</strong></p>
-          <p>No Recibido: <strong>${noShowSum}</strong></p>
+          <p>❌ No recibido: <strong>${noShowSum}</strong></p>
         </div>
       </div>
 
-      {/* BALANCE */}
+      {/* 📈 BALANCE */}
       <div className="bg-blue-100 p-4 rounded shadow mb-6">
         <h3 className="font-bold text-lg">Balance</h3>
         <p>Diferencia (Ingresos - No recibido): <strong>${attendedSum - noShowSum}</strong></p>
       </div>
 
-      {/* TABLAS DE DETALLE */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* TABLA ATENDIDAS */}
-       <div>
-        <h3 className="text-xl font-semibold mb-2">Detalle por Servicio (Atendidas)</h3>
-        {Object.keys(attendedByService).length > 0 ? (
-            <table className="w-full border-collapse border border-gray-300">
-            <thead>
-                <tr className="bg-green-200">
-                <th className="border border-gray-300 p-2 text-left">Servicio</th>
-                <th className="border border-gray-300 p-2 text-center">Citas</th>
-                <th className="border border-gray-300 p-2 text-center">Por ganar ($)</th>
-                <th className="border border-gray-300 p-2 text-center">Pagado ($)</th>
-                <th className="border border-gray-300 p-2 text-center">Adeudado ($)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {services.map((service) => {
-                const citas = attended.filter((a) => a.serviceId === service.id);
-                if (!citas.length) return null;
-
-                const porGanar = citas.reduce((sum) => sum + (service.price || 0), 0);
-                const ganado = citas.reduce((sum, a) => sum + (a.payment || 0), 0);
-                const adeudado = citas.reduce(
-                    (sum, a) => sum + Math.max((service.price || 0) - (a.payment || 0), 0),
-                    0
-                );
-
-                return (
-                    <tr key={service.id}>
-                    <td className="border border-gray-300 p-2">{service.name}</td>
-                    <td className="border border-gray-300 p-2 text-center">{citas.length}</td>
-                    <td className="border border-gray-300 p-2 text-center">${porGanar}</td>
-                    <td className="border border-gray-300 p-2 text-center">${ganado}</td>
-                    <td className="border border-gray-300 p-2 text-center">${adeudado}</td>
-                    </tr>
-                );
-                })}
-            </tbody>
-            </table>
-        ) : (
-            <p className="text-gray-500">No hay datos en este periodo.</p>
-        )}
-        </div>
-
-
-        {/* TABLA NO ASISTIDAS */}
-       <div>
-        <h3 className="text-xl font-semibold mb-2">Detalle por Servicio (No asistidas)</h3>
-        {Object.keys(noShowByService).length > 0 ? (
-            <table className="w-full border-collapse border border-gray-300">
-            <thead>
-                <tr className="bg-red-200">
-                <th className="border border-gray-300 p-2 text-left">Servicio</th>
-                <th className="border border-gray-300 p-2 text-center">Citas</th>
-                <th className="border border-gray-300 p-2 text-center">Pérdida ($)</th>
-                </tr>
-            </thead>
-            <tbody>
-                {services.map((service) => {
-                const citas = noShow.filter((a) => a.serviceId === service.id);
-                if (!citas.length) return null;
-
-                const perdida = citas.reduce((sum) => sum + (service.price || 0), 0);
-
-                return (
-                    <tr key={service.id}>
-                    <td className="border border-gray-300 p-2">{service.name}</td>
-                    <td className="border border-gray-300 p-2 text-center">{citas.length}</td>
-                    <td className="border border-gray-300 p-2 text-center">${perdida}</td>
-                    </tr>
-                );
-                })}
-            </tbody>
-            </table>
-        ) : (
-            <p className="text-gray-500">No hay datos en este periodo.</p>
-        )}
-        </div>
-
-      </div>
-
-      {/* TABLA DETALLADA DE ATENDIDOS */}
-      <div className="mt-8">
-        <h3 className="text-xl font-semibold mb-2">Detalle de Citas Atendidas</h3>
-        {attended.length > 0 ? (
-          <table className="w-full border-collapse border border-gray-300">
-           <thead>
-            <tr className="bg-green-200">
-                <th className="border border-gray-300 p-2 text-left">Servicio</th>
-                <th className="border border-gray-300 p-2 text-left">Cliente</th>
-                <th className="border border-gray-300 p-2 text-center">Fecha</th>
-                <th className="border border-gray-300 p-2 text-center">Por ganar ($)</th>
-                <th className="border border-gray-300 p-2 text-center">Adeudado ($)</th>
-
-            </tr>
-            </thead>
-            <tbody>
-            {attended.map((appt) => {
-                const service = services.find((s) => s.id === appt.serviceId);
-                const price = service?.price || 0;
-                const adeudado = Math.max(price - (appt.payment || 0), 0);
-                return (
-                <tr key={appt.id}>
-                    <td className="border border-gray-300 p-2">{service?.name || "Sin servicio"}</td>
-                    <td className="border border-gray-300 p-2">{appt.clientInfo?.name || "Sin nombre asignado"}</td>
-                    <td className="border border-gray-300 p-2 text-center">{new Date(appt.startTime).toLocaleDateString()}</td>
-                    <td className="border border-gray-300 p-2 text-center">${price}</td>
-                    <td className="border border-gray-300 p-2 text-center">{adeudado > 0 ? `$${adeudado}` : "-"}</td>
-                </tr>
-                );
-            })}
-            </tbody>
-
-          </table>
-        ) : (
-          <p className="text-gray-500">No hay citas atendidas en este periodo.</p>
-        )}
-      </div>
+      {/* 🔎 TABLAS MODULARES */}
+      <AccountsTables attended={attended} noShow={noShow} services={services} />
+      <AccountsAttendedDetail attended={attended} services={services} />
     </div>
   );
 }

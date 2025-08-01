@@ -1,5 +1,5 @@
 // src/pages/LandingHome.tsx
-import  { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { db } from "../../firebaseConfig";
 import { collection, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
@@ -10,6 +10,7 @@ interface Service {
   description?: string;
   price: number;
   duration: number;
+  available: boolean; // ✅ Nuevo campo
 }
 
 const PROFESSIONAL_UID = "XrNrVJJrZaSBYJF8WnNj2a3p0iW2"; // 👈 Reemplaza con tu UID
@@ -25,8 +26,12 @@ export default function LandingHome() {
         ...(doc.data() as Service),
         id: doc.id,
       }));
-      setServices(data.slice(0, 3));
+
+      // ✅ Filtrar solo los servicios disponibles y mostrar los primeros 3
+      const availableServices = data.filter((service) => service.available);
+      setServices(availableServices.slice(0, 3));
     };
+
     fetchServices();
   }, []);
 

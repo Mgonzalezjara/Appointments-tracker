@@ -9,6 +9,7 @@ interface Service {
   description?: string;
   price: number;
   duration: number;
+  available: boolean; // ✅ Campo nuevo
 }
 
 export default function ServicesPublicPage({ professionalId }: { professionalId: string }) {
@@ -18,11 +19,12 @@ export default function ServicesPublicPage({ professionalId }: { professionalId:
     const fetchServices = async () => {
       const querySnapshot = await getDocs(collection(db, "professionals", professionalId, "services"));
       const data: Service[] = querySnapshot.docs.map((doc) => ({
-  ...(doc.data() as Service), // primero los datos de Firestore
-  id: doc.id,                // luego sobrescribimos id con el de Firestore
-}));
+        ...(doc.data() as Service),
+        id: doc.id,
+      }));
 
-      setServices(data);
+      // ✅ Filtrar solo los que están disponibles
+      setServices(data.filter((service) => service.available));
     };
     fetchServices();
   }, [professionalId]);
