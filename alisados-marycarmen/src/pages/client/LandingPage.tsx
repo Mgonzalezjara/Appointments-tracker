@@ -103,7 +103,15 @@ export default function LandingPage() {
       )}
 
       {/* Footer dinámico */}
-     <footer className="bg-gray-100 text-center py-6 text-sm text-gray-600">
+    {/* Footer dinámico */}
+    <footer className="bg-gray-100 text-center py-6 text-sm text-gray-600">
+      {/* Logo en el footer */}
+      {businessData?.logo && (
+        <div className="mb-4 flex justify-center">
+          <img src={businessData.logo} alt="Logo" className="h-12 object-contain" />
+        </div>
+      )}
+
       <div className="flex justify-center gap-6 mb-4 flex-wrap">
         {businessData?.phone && (
           <a href={`tel:${businessData.phone}`} className="flex items-center gap-2 hover:underline">
@@ -141,6 +149,7 @@ export default function LandingPage() {
           </a>
         )}
       </div>
+
       © {new Date().getFullYear()} {businessData?.bussiness_name || "Mi Negocio"}. Todos los derechos reservados.
     </footer>
 
