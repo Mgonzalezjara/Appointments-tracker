@@ -1,1 +1,19 @@
 @import "tailwindcss";
+
+/* Días tachados */
+.rbc-day-bg.line-through {
+  text-decoration: line-through;
+  position: relative;
+}
+
+/* Número de citas disponibles en la celda */
+.rbc-date-cell .appointment-count {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  background-color: #10b981; /* verde */
+  color: white;
+  border-radius: 9999px;
+  font-size: 0.7rem;
+  padding: 2px 6px;
+}

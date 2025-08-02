@@ -44,11 +44,12 @@ export default function LandingHome() {
           {businessData?.description || "Agenda tu cita fácilmente y descubre servicios profesionales diseñados para ti."}
         </p>
         <button
-          onClick={() => navigate("/getcitas")}
+          onClick={() => navigate(services.length > 0 ? "/servicios" : "/getcitas")}
           className="bg-blue-500 text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-blue-600 shadow-md"
         >
           Reservar una Cita
         </button>
+
       </header>
 
       {/* Sobre mí */}
@@ -74,7 +75,10 @@ export default function LandingHome() {
                 <p className="mt-4 text-green-600 font-bold text-lg">${service.price}</p>
                 <p className="text-sm text-gray-500 mb-4">Duración: {service.duration} min</p>
                 <button
-                  onClick={() => navigate("/getcitas")}
+                  onClick={() => {
+                    localStorage.setItem("selectedService", JSON.stringify(service)); // ✅ Guardar servicio
+                    navigate("/getcitas");
+                  }}
                   className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-2"
                 >
                   Agendar ahora
@@ -96,6 +100,7 @@ export default function LandingHome() {
           </div>
         )}
       </section>
+
     </div>
   );
 }
