@@ -32,12 +32,22 @@ export default function LandingPage() {
     <div className="min-h-screen flex flex-col relative">
       {/* Navbar */}
       <nav className="bg-white shadow-md p-4 flex justify-between items-center relative">
-        <h1
-          className="text-2xl font-bold cursor-pointer text-blue-600"
+        <div
+          className="flex items-center cursor-pointer"
           onClick={() => navigate("/")}
         >
-          {businessData?.bussiness_name || "Mi Negocio"}
-        </h1>
+          {businessData?.logo ? (
+            <img
+              src={businessData.logo}
+              alt="Logo"
+              className="h-10 object-contain"
+            />
+          ) : (
+            <h1 className="text-2xl font-bold text-blue-600">
+              {businessData?.bussiness_name || "Mi Negocio"}
+            </h1>
+          )}
+        </div>
         <div className="hidden md:flex gap-6 items-center">
           {hasServices && (
             <button onClick={() => navigate("/servicios")} className="flex items-center gap-2 text-gray-700 hover:text-blue-500">
@@ -103,56 +113,58 @@ export default function LandingPage() {
       )}
 
       {/* Footer dinámico */}
-    {/* Footer dinámico */}
-    <footer className="bg-gray-100 text-center py-6 text-sm text-gray-600">
-      {/* Logo en el footer */}
-      {businessData?.logo && (
+      <footer className="bg-gray-100 text-center py-6 text-sm text-gray-600">
+        {/* Logo o nombre en el footer */}
         <div className="mb-4 flex justify-center">
-          <img src={businessData.logo} alt="Logo" className="h-12 object-contain" />
+          {businessData?.logo ? (
+            <img src={businessData.logo} alt="Logo" className="h-12 object-contain" />
+          ) : (
+            <span className="text-lg font-bold text-blue-600">
+              {businessData?.bussiness_name || "Mi Negocio"}
+            </span>
+          )}
         </div>
-      )}
 
-      <div className="flex justify-center gap-6 mb-4 flex-wrap">
-        {businessData?.phone && (
-          <a href={`tel:${businessData.phone}`} className="flex items-center gap-2 hover:underline">
-            <Phone size={16} /> {businessData.phone}
-          </a>
-        )}
-        {businessData?.email && (
-          <a href={`mailto:${businessData.email}`} className="flex items-center gap-2 hover:underline">
-            <Mail size={16} /> {businessData.email}
-          </a>
-        )}
-        {businessData?.facebook && (
-          <a href={businessData.facebook} target="_blank" className="flex items-center gap-2 hover:underline">
-            <Facebook size={16}/> Facebook
-          </a>
-        )}
-        {businessData?.tiktok && (
-          <a href={businessData.tiktok} target="_blank" className="flex items-center gap-2 hover:underline">
-            <Music2 size={16}/> TikTok
-          </a>
-        )}
-        {businessData?.website && (
-          <a href={businessData.website} target="_blank" className="flex items-center gap-2 hover:underline">
-            <Globe size={16}/> Sitio Web
-          </a>
-        )}
-        {businessData?.instagram && (
-          <a href={businessData.instagram} target="_blank" className="flex items-center gap-2 hover:underline">
-            <Instagram size={16}/> Instagram
-          </a>
-        )}
-        {businessData?.threads && (
-          <a href={businessData.threads} target="_blank" className="flex items-center gap-2 hover:underline">
-            <MessageCircle size={16}/> Threads
-          </a>
-        )}
-      </div>
+        <div className="flex justify-center gap-6 mb-4 flex-wrap">
+          {businessData?.phone && (
+            <a href={`tel:${businessData.phone}`} className="flex items-center gap-2 hover:underline">
+              <Phone size={16} /> {businessData.phone}
+            </a>
+          )}
+          {businessData?.email && (
+            <a href={`mailto:${businessData.email}`} className="flex items-center gap-2 hover:underline">
+              <Mail size={16} /> {businessData.email}
+            </a>
+          )}
+          {businessData?.facebook && (
+            <a href={businessData.facebook} target="_blank" className="flex items-center gap-2 hover:underline">
+              <Facebook size={16} /> Facebook
+            </a>
+          )}
+          {businessData?.tiktok && (
+            <a href={businessData.tiktok} target="_blank" className="flex items-center gap-2 hover:underline">
+              <Music2 size={16} /> TikTok
+            </a>
+          )}
+          {businessData?.website && (
+            <a href={businessData.website} target="_blank" className="flex items-center gap-2 hover:underline">
+              <Globe size={16} /> Sitio Web
+            </a>
+          )}
+          {businessData?.instagram && (
+            <a href={businessData.instagram} target="_blank" className="flex items-center gap-2 hover:underline">
+              <Instagram size={16} /> Instagram
+            </a>
+          )}
+          {businessData?.threads && (
+            <a href={businessData.threads} target="_blank" className="flex items-center gap-2 hover:underline">
+              <MessageCircle size={16} /> Threads
+            </a>
+          )}
+        </div>
 
-      © {new Date().getFullYear()} {businessData?.bussiness_name || "Mi Negocio"}. Todos los derechos reservados.
-    </footer>
-
+        © {new Date().getFullYear()} {businessData?.bussiness_name || "Mi Negocio"}. Todos los derechos reservados.
+      </footer>
     </div>
   );
 }

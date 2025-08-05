@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useAuth } from "../../context/authContext";
-import { db } from "../../firebaseConfig";
-import { doc, updateDoc } from "firebase/firestore";
+import { updateProfileField, updateProfileData } from "../../services/professional/profileService";
 
 const CLOUDINARY_UPLOAD_PRESET = "bookmeenlinea";
 const CLOUDINARY_CLOUD_NAME = "domgxhgay";
@@ -26,12 +25,19 @@ export default function ProfilePage() {
     whatsapp: "",
     threads: "",
     logo: "",
+    gallery: [] as string[],
   });
 
-  const [uploading, setUploading] = useState(false);
+  // Logo
+  const [uploadingLogo, setUploadingLogo] = useState(false);
   const [previewLogo, setPreviewLogo] = useState<string | null>(null);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [selectedLogoFile, setSelectedLogoFile] = useState<File | null>(null);
+  const logoInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Galería
+  const [uploadingGallery, setUploadingGallery] = useState(false);
+  const [galleryFiles, setGalleryFiles] = useState<File[]>([]);
+  const [galleryPreviews, setGalleryPreviews] = useState<string[]>([]);
 
   useEffect(() => {
     if (professionalProfile) {
@@ -52,6 +58,7 @@ export default function ProfilePage() {
         whatsapp: professionalProfile.whatsapp || "",
         threads: professionalProfile.threads || "",
         logo: professionalProfile.logo || "",
+        gallery: professionalProfile.gallery || [],
       });
     }
   }, [professionalProfile]);
@@ -60,13 +67,13 @@ export default function ProfilePage() {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
-  // 📷 Selección de archivo con validación
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ===================== LOGO =====================
+  const handleLogoSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
     if (!["image/jpeg", "image/png", "image/jpg", "image/webp"].includes(file.type)) {
-      alert("Solo se permiten imágenes en formato JPG, JPEG, PNG o WebP");
+      alert("Solo se permiten imágenes JPG, JPEG, PNG o WebP");
       return;
     }
     if (file.size > 3 * 1024 * 1024) {
@@ -74,73 +81,113 @@ export default function ProfilePage() {
       return;
     }
 
-    setSelectedFile(file);
+    setSelectedLogoFile(file);
     setPreviewLogo(URL.createObjectURL(file));
   };
 
-  // 📤 Subir logo
   const handleUploadLogo = async () => {
-    if (!selectedFile) return alert("Primero selecciona una imagen");
+    if (!selectedLogoFile || !user) return alert("Selecciona una imagen");
 
-    setUploading(true);
+    setUploadingLogo(true);
     const data = new FormData();
-    data.append("file", selectedFile);
+    data.append("file", selectedLogoFile);
     data.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
     try {
-      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, {
-        method: "POST",
-        body: data,
-      });
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, { method: "POST", body: data });
       const json = await res.json();
 
       if (json.secure_url) {
         setFormData((prev) => ({ ...prev, logo: json.secure_url }));
-        setPreviewLogo(null);
-        setSelectedFile(null);
-        if (fileInputRef.current) fileInputRef.current.value = ""; // 🔥 Limpiar input
+        await updateProfileField(user.uid, "logo", json.secure_url);
         alert("Logo subido correctamente");
-
-        if (user) {
-          const docRef = doc(db, "professionals", user.uid);
-          await updateDoc(docRef, { logo: json.secure_url });
-        }
-      } else {
-        alert("Error al subir la imagen");
       }
     } catch (error) {
-      console.error("Error al subir la imagen:", error);
-      alert("Error al subir la imagen");
+      alert("Error al subir el logo");
     } finally {
-      setUploading(false);
+      setPreviewLogo(null);
+      setSelectedLogoFile(null);
+      if (logoInputRef.current) logoInputRef.current.value = "";
+      setUploadingLogo(false);
     }
   };
 
-  // ❌ Cancelar selección de nuevo logo
   const handleCancelNewLogo = () => {
     setPreviewLogo(null);
-    setSelectedFile(null);
-    if (fileInputRef.current) fileInputRef.current.value = ""; // 🔥 Limpiar input
+    setSelectedLogoFile(null);
+    if (logoInputRef.current) logoInputRef.current.value = "";
   };
 
-  // 🗑️ Eliminar logo
   const handleDeleteLogo = async () => {
     if (!user) return;
-    const confirmDelete = confirm("¿Seguro que deseas eliminar el logo?");
-    if (!confirmDelete) return;
-
+    if (!confirm("¿Eliminar el logo?")) return;
     setFormData((prev) => ({ ...prev, logo: "" }));
-    if (fileInputRef.current) fileInputRef.current.value = "";
-    const docRef = doc(db, "professionals", user.uid);
-    await updateDoc(docRef, { logo: "" });
+    await updateProfileField(user.uid, "logo", "");
     alert("Logo eliminado correctamente");
   };
 
-  // Guardar todos los datos del perfil
-  const handleUpdate = async () => {
+  // ===================== GALERÍA =====================
+  const handleGallerySelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    const validFiles = files.filter((file) => {
+      if (!["image/jpeg", "image/png", "image/jpg", "image/webp"].includes(file.type)) {
+        alert("Formato inválido");
+        return false;
+      }
+      if (file.size > 3 * 1024 * 1024) {
+        alert("Una imagen supera los 3MB");
+        return false;
+      }
+      return true;
+    });
+
+    const totalCount = (formData.gallery?.length || 0) + validFiles.length;
+    if (totalCount > 7) {
+      alert("Máximo 7 fotos en la galería");
+      return;
+    }
+
+    setGalleryFiles(validFiles);
+    setGalleryPreviews(validFiles.map((f) => URL.createObjectURL(f)));
+  };
+
+  const handleUploadGallery = async () => {
+    if (!galleryFiles.length || !user) return alert("Selecciona imágenes primero");
+    setUploadingGallery(true);
+
+    const uploadedUrls: string[] = [];
+    for (const file of galleryFiles) {
+      const data = new FormData();
+      data.append("file", file);
+      data.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+
+      const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/image/upload`, { method: "POST", body: data });
+      const json = await res.json();
+      if (json.secure_url) uploadedUrls.push(json.secure_url);
+    }
+
+    const updatedGallery = [...(formData.gallery || []), ...uploadedUrls];
+    setFormData((prev) => ({ ...prev, gallery: updatedGallery }));
+    await updateProfileField(user.uid, "gallery", updatedGallery);
+
+    setGalleryFiles([]);
+    setGalleryPreviews([]);
+    alert("Galería actualizada correctamente");
+    setUploadingGallery(false);
+  };
+
+  const handleDeleteGalleryPhoto = async (url: string) => {
+    if (!user) return;
+    const updated = (formData.gallery || []).filter((photo) => photo !== url);
+    setFormData((prev) => ({ ...prev, gallery: updated }));
+    await updateProfileField(user.uid, "gallery", updated);
+    alert("Foto eliminada de la galería");
+  };
+
+  // ===================== GUARDAR PERFIL =====================
+  const handleUpdateProfile = async () => {
     if (!user) return alert("Usuario no autenticado");
-    const docRef = doc(db, "professionals", user.uid);
-    await updateDoc(docRef, { ...formData });
+    await updateProfileData(user.uid, formData);
     alert("Perfil actualizado correctamente");
   };
 
@@ -148,21 +195,15 @@ export default function ProfilePage() {
     <div className="max-w-2xl">
       <h2 className="text-2xl font-bold mb-6">Tu Perfil</h2>
 
-      {/* Logo */}
+      {/* LOGO */}
       <div className="mb-6">
         <label className="block mb-1 font-semibold">Logo del Negocio</label>
-
-        {/* Logo actual */}
         {formData.logo && !previewLogo && (
           <div className="mb-3 flex flex-col items-start gap-2">
             <img src={formData.logo} alt="Logo actual" className="h-20 object-contain border rounded" />
-            <button onClick={handleDeleteLogo} className="text-red-500 text-sm hover:underline">
-              Eliminar logo
-            </button>
+            <button onClick={handleDeleteLogo} className="text-red-500 text-sm hover:underline">Eliminar logo</button>
           </div>
         )}
-
-        {/* Preview y comparación */}
         {previewLogo && (
           <div className="mb-4 flex gap-6">
             {formData.logo && (
@@ -177,96 +218,71 @@ export default function ProfilePage() {
             </div>
           </div>
         )}
-
-        {/* Botones para confirmar/cancelar nuevo logo */}
         {previewLogo && (
           <div className="flex gap-4 mb-4">
-            <button
-              onClick={handleUploadLogo}
-              disabled={uploading}
-              className={`px-4 py-1 rounded text-white ${uploading ? "bg-gray-400" : "bg-green-500 hover:bg-green-600"}`}
-            >
-              {uploading ? "Subiendo..." : "Guardar nuevo logo"}
+            <button onClick={handleUploadLogo} disabled={uploadingLogo} className={`px-4 py-1 rounded text-white ${uploadingLogo ? "bg-gray-400" : "bg-green-500 hover:bg-green-600"}`}>
+              {uploadingLogo ? "Subiendo..." : "Guardar nuevo logo"}
             </button>
-            <button onClick={handleCancelNewLogo} className="px-4 py-1 rounded bg-gray-200 hover:bg-gray-300">
-              Cancelar
-            </button>
+            <button onClick={handleCancelNewLogo} className="px-4 py-1 rounded bg-gray-200 hover:bg-gray-300">Cancelar</button>
           </div>
         )}
-
-        {/* Selector de archivo dinámico */}
         <label className="block">
-          <span className="text-blue-600 cursor-pointer hover:underline">
-            {formData.logo ? "Cambiar logo" : "Cargar logo"}
-          </span>
-          <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileSelect} className="hidden" />
+          <span className="text-blue-600 cursor-pointer hover:underline">{formData.logo ? "Cambiar logo" : "Cargar logo"}</span>
+          <input ref={logoInputRef} type="file" accept="image/*" onChange={handleLogoSelect} className="hidden" />
         </label>
       </div>
 
-      {/* Información del Negocio */}
-      <h3 className="text-lg font-semibold mb-2">Información del Negocio</h3>
-      <div className="mb-4">
-        <label className="block mb-1">Nombre del Negocio</label>
-        <input
-          name="bussiness_name"
-          value={formData.bussiness_name}
-          onChange={handleChange}
-          className="border w-full p-2"
-        />
-      </div>
-      <div className="mb-4">
-        <label className="block mb-1">Descripción (se muestra en el Hero)</label>
-        <textarea
-          name="description"
-          value={formData.description}
-          onChange={handleChange}
-          className="border w-full p-2 h-20"
-        />
-      </div>
+      {/* GALERÍA */}
       <div className="mb-6">
-        <label className="block mb-1">Sobre mí (formación o experiencia)</label>
-        <textarea
-          name="about_me"
-          value={formData.about_me}
-          onChange={handleChange}
-          className="border w-full p-2 h-20"
-        />
+        <label className="block mb-2 font-semibold">Galería de fotos (máx. 7)</label>
+        <div className="flex gap-2 flex-wrap mb-3">
+          {formData.gallery.map((photo, i) => (
+            <div key={i} className="relative">
+              <img src={photo} alt={`foto-${i}`} className="h-20 w-20 object-cover border rounded" />
+              <button onClick={() => handleDeleteGalleryPhoto(photo)} className="absolute top-0 right-0 bg-red-500 text-white text-xs rounded-full px-1">✕</button>
+            </div>
+          ))}
+        </div>
+        <div className="border-2 border-dashed p-4 text-center rounded cursor-pointer hover:border-blue-400" onClick={() => document.getElementById("galleryInput")?.click()}>
+          <p className="text-sm text-gray-500">Haz clic aquí o arrastra imágenes (máx. 3MB c/u)</p>
+          <p className="text-xs text-gray-400 mt-1">Formatos: JPG, PNG, WebP</p>
+          <input id="galleryInput" type="file" accept="image/*" multiple onChange={handleGallerySelect} className="hidden" />
+        </div>
+        {galleryPreviews.length > 0 && (
+          <div className="flex gap-2 mt-3 flex-wrap">
+            {galleryPreviews.map((src, i) => (
+              <img key={i} src={src} alt={`preview-${i}`} className="h-20 w-20 object-cover border rounded" />
+            ))}
+          </div>
+        )}
+        {galleryPreviews.length > 0 && (
+          <button onClick={handleUploadGallery} disabled={uploadingGallery} className="mt-3 px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
+            {uploadingGallery ? "Subiendo..." : "Guardar fotos"}
+          </button>
+        )}
       </div>
 
-      {/* Datos Personales */}
+      {/* DATOS DEL NEGOCIO */}
+      <h3 className="text-lg font-semibold mb-2">Información del Negocio</h3>
+      <input name="bussiness_name" value={formData.bussiness_name} onChange={handleChange} className="border w-full p-2 mb-4" placeholder="Nombre del negocio" />
+      <textarea name="description" value={formData.description} onChange={handleChange} className="border w-full p-2 h-20 mb-4" placeholder="Descripción" />
+      <textarea name="about_me" value={formData.about_me} onChange={handleChange} className="border w-full p-2 h-20 mb-6" placeholder="Sobre mí" />
+
+      {/* DATOS PERSONALES */}
       <h3 className="text-lg font-semibold mb-2">Datos Personales</h3>
       {["name", "rut", "phone", "website", "address", "speciality"].map((field) => (
-        <div key={field} className="mb-4">
-          <label className="block mb-1 capitalize">{field}</label>
-          <input
-            name={field}
-            value={(formData as any)[field]}
-            onChange={handleChange}
-            className="border w-full p-2"
-          />
-        </div>
+        <input key={field} name={field} value={(formData as any)[field]} onChange={handleChange} className="border w-full p-2 mb-4" placeholder={field} />
       ))}
       <label className="block mb-1">Email</label>
       <input value={formData.email} disabled className="border w-full p-2 mb-6 bg-gray-100" />
 
-      {/* Redes Sociales */}
+      {/* REDES SOCIALES */}
       <h3 className="text-lg font-semibold mb-2">Redes Sociales</h3>
       {["facebook", "instagram", "tiktok", "whatsapp", "threads"].map((field) => (
-        <div key={field} className="mb-4">
-          <label className="block mb-1 capitalize">{field}</label>
-          <input
-            name={field}
-            value={(formData as any)[field]}
-            onChange={handleChange}
-            className="border w-full p-2"
-          />
-        </div>
+        <input key={field} name={field} value={(formData as any)[field]} onChange={handleChange} className="border w-full p-2 mb-4" placeholder={field} />
       ))}
 
-      <button
-        onClick={handleUpdate}
-        className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4"
-      >
+      <button onClick={handleUpdateProfile} className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-4 w-full">
         Actualizar datos
       </button>
     </div>

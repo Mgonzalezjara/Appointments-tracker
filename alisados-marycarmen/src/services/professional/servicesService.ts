@@ -1,3 +1,4 @@
+// servicesService.ts
 import { db } from "../../firebaseConfig";
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc } from "firebase/firestore";
 
@@ -7,15 +8,28 @@ export interface Service {
   description: string;
   price: number;
   duration: number;
-  available: boolean; // ✅ Campo nuevo
+  available: boolean;
+  photos: string[]; // ✅ Nuevo campo
 }
 
 // Obtener servicios
 export const fetchServices = async (userId: string): Promise<Service[]> => {
   const servicesRef = collection(db, "professionals", userId, "services");
   const snapshot = await getDocs(servicesRef);
-  return snapshot.docs.map((docSnap) => ({ id: docSnap.id, ...docSnap.data() } as Service));
+  return snapshot.docs.map((docSnap) => {
+    const data = docSnap.data();
+    return {
+      id: docSnap.id,
+      name: data.name || "",
+      description: data.description || "",
+      price: data.price || 0,
+      duration: data.duration || 0,
+      available: data.available ?? true,
+      photos: data.photos || [], // ✅ Siempre array vacío si no existe
+    } as Service;
+  });
 };
+
 
 // Agregar servicio
 export const addService = async (userId: string, newService: Omit<Service, "id">) => {
