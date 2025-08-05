@@ -5,7 +5,6 @@ import { doc, getDoc, collection, getDocs } from "firebase/firestore";
 import { useNavigate } from "react-router-dom";
 
 const PROFESSIONAL_UID = "XrNrVJJrZaSBYJF8WnNj2a3p0iW2";
-const DEFAULT_IMAGE = "https://via.placeholder.com/600x400?text=Logo+por+defecto";
 
 interface Service {
   id: string;
@@ -20,6 +19,7 @@ interface Service {
 export default function LandingHome() {
   const navigate = useNavigate();
   const [services, setServices] = useState<Service[]>([]);
+  const [allServicesCount, setAllServicesCount] = useState<number>(0);
   const [businessData, setBusinessData] = useState<any>(null);
 
   const [lightboxOpen, setLightboxOpen] = useState(false);
@@ -34,6 +34,8 @@ export default function LandingHome() {
       const serviceSnap = await getDocs(collection(db, "professionals", PROFESSIONAL_UID, "services"));
       const data: Service[] = serviceSnap.docs.map((doc) => ({ ...(doc.data() as Service), id: doc.id }));
       const availableServices = data.filter((s) => s.available);
+
+      setAllServicesCount(availableServices.length);
       setServices(availableServices.slice(0, 3));
     };
     fetchData();
@@ -52,38 +54,35 @@ export default function LandingHome() {
   return (
     <div>
       {/* Hero */}
-  <header
-  className={`relative text-center py-20 px-4 ${
-    businessData?.gallery?.length ? "text-white" : "bg-gradient-to-r from-blue-50 to-blue-100 text-gray-800"
-  }`}
-  style={
-    businessData?.gallery?.length
-      ? { 
-          backgroundImage: `url(${businessData.gallery[0]})`, 
-          backgroundSize: "cover", 
-          backgroundPosition: "center" 
+      <header
+        className={`relative text-center py-20 px-4 ${
+          businessData?.gallery?.length ? "text-white" : "bg-gradient-to-r from-blue-50 to-blue-100 text-gray-800"
+        }`}
+        style={
+          businessData?.gallery?.length
+            ? { 
+                backgroundImage: `url(${businessData.gallery[0]})`, 
+                backgroundSize: "cover", 
+                backgroundPosition: "center" 
+              }
+            : {}
         }
-      : {}
-  }
->
-  {/* 🔥 Eliminamos el overlay negro completamente */}
-  <div className="relative z-10">
-    <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
-      Bienvenido a <span className="text-blue-400">{businessData?.bussiness_name || "Nuestro negocio"}</span>
-    </h2>
-    <p className="text-lg md:text-xl mb-8 max-w-2xl mx-auto">
-      {businessData?.description || "Agenda tu cita fácilmente y descubre servicios profesionales diseñados para ti."}
-    </p>
-    <button
-      onClick={() => navigate(services.length > 0 ? "/servicios" : "/getcitas")}
-      className="bg-blue-500 text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-blue-600 shadow-md"
-    >
-      Reservar una Cita
-    </button>
-  </div>
-</header>
-
-
+      >
+        <div className="relative z-10">
+          <h2 className="text-4xl md:text-5xl font-extrabold mb-4">
+            Bienvenido a <span className="text-blue-400">{businessData?.bussiness_name || "Nuestro negocio"}</span>
+          </h2>
+          <p className="text-lg md:text-xl mb-8 max-w-2xl mx-auto">
+            {businessData?.description || "Agenda tu cita fácilmente y descubre servicios profesionales diseñados para ti."}
+          </p>
+          <button
+            onClick={() => navigate(services.length > 0 ? "/servicios" : "/getcitas")}
+            className="bg-blue-500 text-white px-6 py-3 rounded-lg text-lg font-semibold hover:bg-blue-600 shadow-md"
+          >
+            Reservar una Cita
+          </button>
+        </div>
+      </header>
 
       {/* Sobre mí */}
       {businessData?.about_me?.trim() && (
@@ -97,45 +96,61 @@ export default function LandingHome() {
       <section className="py-16 bg-white px-6">
         <h3 className="text-3xl font-bold text-center mb-10 text-gray-800">Servicios Destacados</h3>
         {services.length > 0 ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
-          {services.map((service) => {
-          const serviceImage =
-            service.photos && service.photos.length > 0
-              ? service.photos[0]
-              : businessData?.logo || null;
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-6xl mx-auto">
+              {services.map((service) => {
+                const serviceImage =
+                  service.photos && service.photos.length > 0
+                    ? service.photos[0]
+                    : businessData?.logo || null;
 
-          return (
-            <div
-              key={service.id}
-              className="bg-white border border-gray-200 rounded-lg shadow hover:shadow-lg transition p-4 flex flex-col items-center"
-            >
-              {serviceImage && (
-                <img
-                  src={serviceImage}
-                  alt={service.name}
-                  className="h-40 w-full object-cover rounded mb-4"
-                />
-              )}
-              <h4 className="text-xl font-semibold text-gray-800 text-center">{service.name}</h4>
-              {service.description && (
-                <p className="text-gray-600 mt-2 text-sm text-center">{service.description}</p>
-              )}
-              <p className="mt-4 text-green-600 font-bold text-lg">${service.price}</p>
-              <p className="text-sm text-gray-500 mb-4">Duración: {service.duration} min</p>
-              <button
-                onClick={() => {
-                  localStorage.setItem("selectedService", JSON.stringify(service));
-                  navigate("/getcitas");
-                }}
-                className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-auto"
-              >
-                Agendar ahora
-              </button>
+                return (
+                  <div
+                    key={service.id}
+                    className="bg-white border border-gray-200 rounded-lg shadow hover:shadow-lg transition p-4 flex flex-col items-center"
+                  >
+                    {serviceImage && (
+                      <img
+                        src={serviceImage}
+                        alt={service.name}
+                        className="h-40 w-full object-cover rounded mb-4"
+                      />
+                    )}
+                    <h4 className="text-xl font-semibold text-gray-800 text-center">{service.name}</h4>
+                    {service.description && (
+                      <p className="text-gray-600 mt-2 text-sm text-center">{service.description}</p>
+                    )}
+                    <p className="mt-4 text-green-600 font-bold text-lg">${service.price}</p>
+                    <p className="text-sm text-gray-500 mb-4">Duración: {service.duration} min</p>
+                    <button
+                      onClick={() => {
+                        localStorage.setItem("selectedService", JSON.stringify(service));
+                        navigate("/getcitas");
+                      }}
+                      className="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 mt-auto"
+                    >
+                      Agendar ahora
+                    </button>
+                  </div>
+                );
+              })}
             </div>
-          );
-        })}
 
-          </div>
+            {/* Botón Ver todos los servicios */}
+            {allServicesCount > 3 && (
+              <div className="text-center mt-8">
+                <p className="text-gray-600 mb-3">
+                  Tenemos más servicios disponibles para ti.
+                </p>
+                <button
+                  onClick={() => navigate("/servicios")}
+                  className="bg-blue-500 text-white px-6 py-2 rounded-lg hover:bg-blue-600"
+                >
+                  Ver todos los servicios
+                </button>
+              </div>
+            )}
+          </>
         ) : (
           <p className="text-center text-gray-500">Pronto mostraremos nuestros servicios destacados.</p>
         )}
