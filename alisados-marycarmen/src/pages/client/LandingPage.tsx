@@ -28,26 +28,86 @@ export default function LandingPage() {
     fetchData();
   }, []);
 
+  // ✅ SEO dinámico (title, meta, favicon, og, twitter)
+  useEffect(() => {
+    if (!businessData) return;
+
+    const title = businessData.bussiness_name || "Mi Negocio";
+    const description = businessData.description || "Agenda tus citas fácilmente con profesionales de confianza.";
+    const image = businessData.logo || "/vite.svg";
+    const url = window.location.href;
+
+    // Título
+    document.title = title;
+
+    // Meta descripción
+    const metaDesc = document.querySelector("meta[name='description']") || document.createElement("meta");
+    metaDesc.setAttribute("name", "description");
+    metaDesc.setAttribute("content", description);
+    if (!metaDesc.parentNode) document.head.appendChild(metaDesc);
+
+    // Favicon
+    const favicon = document.querySelector("link[rel='icon']") || document.createElement("link");
+    favicon.setAttribute("rel", "icon");
+    favicon.setAttribute("href", image);
+    if (!favicon.parentNode) document.head.appendChild(favicon);
+
+    // Open Graph
+    const setOg = (property: string, content: string) => {
+      let tag = document.querySelector(`meta[property='${property}']`);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute("property", property);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", content);
+    };
+
+    setOg("og:title", title);
+    setOg("og:description", description);
+    setOg("og:image", image);
+    setOg("og:url", url);
+    setOg("og:type", "website");
+
+    // Twitter Card
+    const setTwitter = (name: string, content: string) => {
+      let tag = document.querySelector(`meta[name='${name}']`);
+      if (!tag) {
+        tag = document.createElement("meta");
+        tag.setAttribute("name", name);
+        document.head.appendChild(tag);
+      }
+      tag.setAttribute("content", content);
+    };
+
+    setTwitter("twitter:title", title);
+    setTwitter("twitter:description", description);
+    setTwitter("twitter:image", image);
+    setTwitter("twitter:card", "summary_large_image");
+
+  }, [businessData]);
+
   return (
     <div className="min-h-screen flex flex-col relative">
       {/* Navbar */}
       <nav className="bg-white shadow-md p-4 flex justify-between items-center relative">
-        <div
-          className="flex items-center cursor-pointer"
-          onClick={() => navigate("/")}
-        >
-          {businessData?.logo ? (
-            <img
-              src={businessData.logo}
-              alt="Logo"
-              className="h-10 object-contain"
-            />
-          ) : (
-            <h1 className="text-2xl font-bold text-blue-600">
-              {businessData?.bussiness_name || "Mi Negocio"}
-            </h1>
-          )}
-        </div>
+        {/* Logo o nombre */}
+        {businessData?.logo ? (
+          <img
+            src={businessData.logo}
+            alt="Logo"
+            className="h-10 cursor-pointer"
+            onClick={() => navigate("/")}
+          />
+        ) : (
+          <h1
+            className="text-2xl font-bold cursor-pointer text-blue-600"
+            onClick={() => navigate("/")}
+          >
+            {businessData?.bussiness_name || "Mi Negocio"}
+          </h1>
+        )}
+
         <div className="hidden md:flex gap-6 items-center">
           {hasServices && (
             <button onClick={() => navigate("/servicios")} className="flex items-center gap-2 text-gray-700 hover:text-blue-500">
@@ -67,12 +127,13 @@ export default function LandingPage() {
             <LogIn className="w-4 h-4" /> Login Profesional
           </button>
         </div>
+
         <button className="md:hidden" onClick={() => setIsMenuOpen(!isMenuOpen)}>
           {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
         </button>
       </nav>
 
-      {/* Menu mobile */}
+      {/* Mobile Menu */}
       {isMenuOpen && (
         <div className="md:hidden bg-white shadow-lg p-4 flex flex-col gap-4 absolute top-16 left-0 right-0 z-50">
           {hasServices && (
@@ -95,12 +156,12 @@ export default function LandingPage() {
         </div>
       )}
 
-      {/* Contenido dinámico */}
+      {/* Contenido */}
       <main className="flex-1">
         <Outlet context={{ businessData, hasServices }} />
       </main>
 
-      {/* WhatsApp flotante */}
+      {/* WhatsApp */}
       {businessData?.whatsapp && (
         <a
           href={`https://wa.me/${businessData.whatsapp}`}
@@ -112,18 +173,13 @@ export default function LandingPage() {
         </a>
       )}
 
-      {/* Footer dinámico */}
+      {/* Footer */}
       <footer className="bg-gray-100 text-center py-6 text-sm text-gray-600">
-        {/* Logo o nombre en el footer */}
-        <div className="mb-4 flex justify-center">
-          {businessData?.logo ? (
+        {businessData?.logo && (
+          <div className="mb-4 flex justify-center">
             <img src={businessData.logo} alt="Logo" className="h-12 object-contain" />
-          ) : (
-            <span className="text-lg font-bold text-blue-600">
-              {businessData?.bussiness_name || "Mi Negocio"}
-            </span>
-          )}
-        </div>
+          </div>
+        )}
 
         <div className="flex justify-center gap-6 mb-4 flex-wrap">
           {businessData?.phone && (
